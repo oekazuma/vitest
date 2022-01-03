@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { serializeError } from '../../../packages/vitest/src/runtime/error'
+import { serializeError } from '../../packages/vitest/src/runtime/error'
 
 describe('error serialize', () => {
   it('works', () => {

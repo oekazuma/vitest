@@ -26,7 +26,8 @@
   "exclude": [
     "**/dist/**",
     "./packages/ui/client/**",
-    "./test/**/*.*",
+    "./test/**",
+    "./examples/**/*.*",
     "./bench/**"
   ]
 }
