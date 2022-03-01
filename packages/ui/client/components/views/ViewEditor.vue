@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { fail } from 'assert'
 import type CodeMirror from 'codemirror'
-import type { ComputedRef } from 'vue'
 import { client } from '~/composables/client'
 import type { File } from '#types'
 
@@ -21,16 +19,17 @@ watch(() => props.file,
   { immediate: true },
 )
 const ext = computed(() => props.file?.filepath?.split(/\./g).pop() || 'js')
-
 const editor = ref<any>()
 
 const cm = computed<CodeMirror.EditorFromTextArea | undefined>(() => editor.value?.cm)
 const failed = computed(() => props.file?.tasks.filter(i => i.result?.state === 'fail') || [])
+const hasBeenEdited = ref(false)
 
 const widgets: CodeMirror.LineWidget[] = []
 const handles: CodeMirror.LineHandle[] = []
 
 async function onSave(content: string) {
+  hasBeenEdited.value = true
   await client.rpc.writeFile(props.file!.filepath, content)
 }
 
@@ -56,6 +55,7 @@ watch([cm, failed], () => {
         widgets.push(cm.value!.addLineWidget(pos.line - 1, el))
       }
     })
+    if (!hasBeenEdited.value) cm.value?.clearHistory() // Prevent getting access to initial state
   }, 100)
 }, { flush: 'post' })
 </script>
@@ -64,6 +64,7 @@ watch([cm, failed], () => {
   <CodeMirror
     ref="editor"
     v-model="code"
+    h-full
     v-bind="{ lineNumbers: true }"
     :mode="ext"
     @save="onSave"

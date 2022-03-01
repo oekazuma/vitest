@@ -1,7 +1,9 @@
+
 import * as React from 'react'
 import fetch from 'cross-fetch'
+import { gql, useLazyQuery } from '@apollo/client'
 
-type Post = {
+interface Post {
   userId: number
   id: number
   title: string
@@ -21,6 +23,20 @@ function App() {
     setIsLoading(false)
   }
 
+  // GraphQL API
+  const GET_POSTS = gql`
+    query posts {
+  posts{
+    userId
+    id
+    title
+    body
+  }
+}
+  `
+  const [postsGql, setPostsGql] = React.useState<Post[]>([])
+  const [runQuery, { loading, data }] = useLazyQuery(GET_POSTS, { onCompleted: () => setPostsGql(data?.posts) })
+
   return (
     <main className="App">
       <h1>MSW Testing Library Example</h1>
@@ -32,6 +48,15 @@ function App() {
         </article>
       ))}
       <button onClick={() => fetchPosts()}>Fetch Posts</button>
+
+      {loading && <span aria-label="loading">Loading...</span>}
+      {postsGql.length > 0 && postsGql.map(post => (
+        <article key={post.id}>
+          <h2>{post.title}</h2>
+          <p>{post.body}</p>
+        </article>
+      ))}
+      <button onClick={() => runQuery()}>Fetch Posts GraphQL</button>
     </main>
   )
 }

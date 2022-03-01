@@ -1,9 +1,10 @@
 import { performance } from 'perf_hooks'
-import type { HookListener, ResolvedConfig, Suite, SuiteHooks, Task, TaskResult, Test } from '../types'
+import type { File, HookListener, ResolvedConfig, Suite, SuiteHooks, Task, TaskResult, Test } from '../types'
 import { vi } from '../integrations/vi'
 import { getSnapshotClient } from '../integrations/snapshot/chai'
-import { hasFailed, hasTests, partitionSuiteChildren } from '../utils'
+import { getFullName, hasFailed, hasTests, partitionSuiteChildren } from '../utils'
 import { getState, setState } from '../integrations/chai/jest-expect'
+import { takeCoverage } from '../integrations/coverage'
 import { getFn, getHooks } from './map'
 import { rpc } from './rpc'
 import { collectTests } from './collect'
@@ -47,6 +48,11 @@ export async function runTest(test: Test) {
   if (test.mode !== 'run')
     return
 
+  if (test.result?.state === 'fail') {
+    updateTask(test)
+    return
+  }
+
   const start = performance.now()
 
   test.result = {
@@ -58,7 +64,7 @@ export async function runTest(test: Test) {
 
   getSnapshotClient().setTest(test)
 
-  process.__vitest_worker__.current = test
+  __vitest_worker__.current = test
 
   try {
     await callSuiteHook(test.suite, 'beforeEach', [test, test.suite])
@@ -68,6 +74,8 @@ export async function runTest(test: Test) {
       isExpectingAssertionsError: null,
       expectedAssertionsNumber: null,
       expectedAssertionsNumberError: null,
+      testPath: test.suite.file?.filepath,
+      currentTestName: getFullName(test),
     })
     await getFn(test)()
     const { assertionCalls, expectedAssertionsNumber, expectedAssertionsNumberError, isExpectingAssertions, isExpectingAssertionsError } = getState()
@@ -107,14 +115,26 @@ export async function runTest(test: Test) {
 
   test.result.duration = performance.now() - start
 
-  process.__vitest_worker__.current = undefined
+  __vitest_worker__.current = undefined
 
   updateTask(test)
 }
 
+function markTasksAsSkipped(suite: Suite) {
+  suite.tasks.forEach((t) => {
+    t.mode = 'skip'
+    t.result = { ...t.result, state: 'skip' }
+    updateTask(t)
+    if (t.type === 'suite') markTasksAsSkipped(t)
+  })
+}
+
 export async function runSuite(suite: Suite) {
-  if (suite.result?.state === 'fail')
+  if (suite.result?.state === 'fail') {
+    markTasksAsSkipped(suite)
+    updateTask(suite)
     return
+  }
 
   const start = performance.now()
 
@@ -157,7 +177,7 @@ export async function runSuite(suite: Suite) {
     if (!hasTests(suite)) {
       suite.result.state = 'fail'
       if (!suite.result.error)
-        suite.result.error = new Error(`No tests found in suite ${suite.name}`)
+        suite.result.error = new Error(`No test found in suite ${suite.name}`)
     }
     else if (hasFailed(suite)) {
       suite.result.state = 'fail'
@@ -176,9 +196,19 @@ async function runSuiteChild(c: Task) {
     : runSuite(c)
 }
 
-export async function runSuites(suites: Suite[]) {
-  for (const suite of suites)
-    await runSuite(suite)
+export async function runFiles(files: File[], config: ResolvedConfig) {
+  for (const file of files) {
+    if (!file.tasks.length && !config.passWithNoTests) {
+      if (!file.result?.error) {
+        file.result = {
+          state: 'fail',
+          error: new Error(`No test suite found in file ${file.filepath}`),
+        }
+      }
+    }
+
+    await runSuite(file)
+  }
 }
 
 export async function startTests(paths: string[], config: ResolvedConfig) {
@@ -186,7 +216,9 @@ export async function startTests(paths: string[], config: ResolvedConfig) {
 
   rpc().onCollected(files)
 
-  await runSuites(files)
+  await runFiles(files, config)
+
+  takeCoverage()
 
   await getSnapshotClient().saveSnap()
 
@@ -194,7 +226,7 @@ export async function startTests(paths: string[], config: ResolvedConfig) {
 }
 
 export function clearModuleMocks() {
-  const { clearMocks, mockReset, restoreMocks } = process.__vitest_worker__.config
+  const { clearMocks, mockReset, restoreMocks } = __vitest_worker__.config
 
   // since each function calls another, we can just call one
   if (restoreMocks)

@@ -1,6 +1,8 @@
 import type { CommonServerOptions } from 'vite'
-import type { BuiltinReporters } from '../reporters'
-import type { C8Options, ResolvedC8Options } from '../coverage'
+import type { PrettyFormatOptions } from 'pretty-format'
+import type { BuiltinReporters } from '../node/reporters'
+import type { C8Options, ResolvedC8Options } from './coverage'
+import type { JSDOMOptions } from './jsdom-options'
 import type { Reporter } from './reporter'
 import type { SnapshotStateOptions } from './snapshot'
 import type { Arrayable } from './general'
@@ -8,6 +10,15 @@ import type { Arrayable } from './general'
 export type BuiltinEnvironment = 'node' | 'jsdom' | 'happy-dom'
 
 export type ApiConfig = Pick<CommonServerOptions, 'port' | 'strictPort' | 'host'>
+
+export { JSDOMOptions }
+
+export interface EnvironmentOptions {
+  /**
+   * jsdom options.
+   */
+  jsdom?: JSDOMOptions
+}
 
 export interface InlineConfig {
   /**
@@ -48,7 +59,7 @@ export interface InlineConfig {
      *
      * @default true
      */
-    interpretDefault?: boolean
+    interopDefault?: boolean
 
     /**
      * When a dependency is a valid ESM package, try to guess the cjs version based on the path.
@@ -61,9 +72,21 @@ export interface InlineConfig {
   }
 
   /**
-   * Register apis globally
+   * Base directory to scan for the test files
    *
-   * @default false
+   * @default `config.root`
+   */
+  dir?: string
+
+  /**
+  * Register apis globally
+  *
+  * @default false
+  */
+  globals?: boolean
+
+  /**
+   * @deprecated
    */
   global?: boolean
 
@@ -77,7 +100,12 @@ export interface InlineConfig {
   environment?: BuiltinEnvironment
 
   /**
-   * Update snapshot files
+   * Environment options.
+   */
+  environmentOptions?: EnvironmentOptions
+
+  /**
+   * Update snapshot
    *
    * @default false
    */
@@ -86,12 +114,14 @@ export interface InlineConfig {
   /**
    * Watch mode
    *
-   * @default false
+   * @default true
    */
   watch?: boolean
 
   /**
    * Project root
+   *
+   * @default process.cwd()
    */
   root?: string
 
@@ -99,6 +129,11 @@ export interface InlineConfig {
    * Custom reporter for output
    */
   reporters?: Arrayable<BuiltinReporters | Reporter>
+
+  /**
+   * Write test results to a file when the --reporter=json option is also specified
+   */
+  outputFile?: string
 
   /**
    * Enable multi-threading
@@ -131,7 +166,7 @@ export interface InlineConfig {
   /**
    * Default timeout of a hook in milliseconds
    *
-   * @default 5000
+   * @default 10000
    */
   hookTimeout?: number
 
@@ -146,6 +181,11 @@ export interface InlineConfig {
    * Path to setup files
    */
   setupFiles?: string | string[]
+
+  /**
+   * Path to global setup files
+   */
+  globalSetup?: string | string[]
 
   /**
    * Pattern of file paths to be ignore from triggering watch rerun
@@ -199,10 +239,50 @@ export interface InlineConfig {
   api?: boolean | number | ApiConfig
 
   /**
-   * Open Vitest UI
+   * Enable Vitest UI
    * @internal WIP
    */
+  ui?: boolean
+
+  /**
+   * Open UI automatically.
+   *
+   * @default true
+   */
   open?: boolean
+
+  /**
+   * Base url for the UI
+   *
+   * @default '/__vitest__/'
+   */
+  uiBase?: string
+
+  /**
+   * Determine the transform method of modules
+   */
+  transformMode?: {
+    /**
+     * Use SSR transform pipeline for the specified files.
+     * Vite plugins will receive `ssr: true` flag when processing those files.
+     *
+     * @default [/\.([cm]?[jt]sx?|json)$/]
+     */
+    ssr?: RegExp[]
+    /**
+     * First do a normal transform pipeline (targeting browser),
+     * then then do a SSR rewrite to run the code in Node.
+     * Vite plugins will receive `ssr: false` flag when processing those files.
+     *
+     * @default other than `ssr`
+     */
+    web?: RegExp[]
+  }
+
+  /**
+   * Format options for snapshot testing.
+   */
+  snapshotFormat?: PrettyFormatOptions
 }
 
 export interface UserConfig extends InlineConfig {
@@ -223,34 +303,41 @@ export interface UserConfig extends InlineConfig {
   dom?: boolean
 
   /**
-   * Do not watch
-   */
-  run?: boolean
-
-  /**
    * Pass with no tests
    */
   passWithNoTests?: boolean
 
   /**
+   * Allow tests and suites that are marked as only
+   */
+  allowOnly?: boolean
+
+  /**
    * Run tests that cover a list of source files
    */
   related?: string[] | string
+
+  /**
+   * Overrides Vite mode
+   * @default 'test'
+   */
+  mode?: string
 }
 
-export interface ResolvedConfig extends Omit<Required<UserConfig>, 'config' | 'filters' | 'coverage' | 'testNamePattern' | 'related' | 'api'> {
+export interface ResolvedConfig extends Omit<Required<UserConfig>, 'config' | 'filters' | 'coverage' | 'testNamePattern' | 'related' | 'api' | 'reporters'> {
+  base?: string
+
   config?: string
   filters?: string[]
   testNamePattern?: RegExp
   related?: string[]
 
-  depsInline: (string | RegExp)[]
-  depsExternal: (string | RegExp)[]
-  fallbackCJS: boolean
-  interpretDefault: boolean
-
   coverage: ResolvedC8Options
   snapshotOptions: SnapshotStateOptions
+
+  reporters: (Reporter | BuiltinReporters)[]
+
+  defines: Record<string, any>
 
   api?: ApiConfig
 }

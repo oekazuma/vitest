@@ -6,16 +6,18 @@
     "types"
   ],
   "scripts": {
-    "coverage": "vitest --coverage",
+    "coverage": "vitest run --coverage",
     "dev": "vite",
-    "test": "vitest"
+    "test": "vitest",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
-    "lit": "^2.0.2"
+    "lit": "^2.2.0"
   },
   "devDependencies": {
-    "happy-dom": "*",
-    "vite": "^2.7.10",
-    "vitest": "workspace:*"
+    "@vitest/ui": "latest",
+    "happy-dom": "latest",
+    "vite": "latest",
+    "vitest": "latest"
   }
 }

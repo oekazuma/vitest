@@ -10,7 +10,8 @@ import { client, isConnected, isConnecting } from '~/composables/client'
       text="center sm"
       bg="overlay"
       backdrop-blur-sm
-      @click="client.reconnect()"
+      backdrop-saturate-0
+      @click="client.reconnect"
     >
       <div
         h-full
@@ -27,7 +28,7 @@ import { client, isConnected, isConnecting } from '~/composables/client'
           {{ isConnecting ? 'Connecting...' : 'Disconnected' }}
         </div>
         <div text-lg op50>
-          Check your terminal or start a new server with `vitest --open`
+          Check your terminal or start a new server with `vitest --ui`
         </div>
       </div>
     </div>

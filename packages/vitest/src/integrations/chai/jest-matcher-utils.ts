@@ -4,7 +4,7 @@
 import c from 'picocolors'
 import type { Formatter } from 'picocolors/types'
 import { format as prettyFormat, plugins as prettyFormatPlugins } from 'pretty-format'
-import { unifiedDiff } from '../../reporters/renderers/diff'
+import { unifiedDiff } from '../../node/diff'
 
 export const EXPECTED_COLOR = c.green
 export const RECEIVED_COLOR = c.red
@@ -30,7 +30,7 @@ const PLUGINS = [
   AsymmetricMatcher,
 ]
 
-export type MatcherHintOptions = {
+export interface MatcherHintOptions {
   comment?: string
   expectedColor?: Formatter
   isDirectExpectCall?: boolean
@@ -142,7 +142,7 @@ export const printReceived = (object: unknown): string =>
 export const printExpected = (value: unknown): string =>
   EXPECTED_COLOR(replaceTrailingSpaces(stringify(value)))
 
-export type DiffOptions = {
+export interface DiffOptions {
   aAnnotation?: string
   aColor?: Formatter
   aIndicator?: string

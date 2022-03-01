@@ -3,6 +3,8 @@ import { expect } from 'chai'
 import type { SnapshotResult, Test } from '../../types'
 import { rpc } from '../../runtime/rpc'
 import { getNames } from '../../utils'
+import { equals, iterableEquality, subsetEquality } from '../chai/jest-utils'
+import { deepMergeSnapshot } from './port/utils'
 import SnapshotState from './port/state'
 
 export interface Context {
@@ -32,7 +34,7 @@ export class SnapshotClient {
       this.testFile = this.test!.file!.filepath
       this.snapshotState = new SnapshotState(
         resolveSnapshotPath(this.testFile),
-        process.__vitest_worker__!.config.snapshotOptions,
+        __vitest_worker__!.config.snapshotOptions,
       )
     }
   }
@@ -41,9 +43,26 @@ export class SnapshotClient {
     this.test = undefined
   }
 
-  assert(received: unknown, message?: string, isInline = false, inlineSnapshot?: string): void {
+  assert(received: unknown, message?: string, isInline = false, properties?: object, inlineSnapshot?: string, error?: Error): void {
     if (!this.test)
       throw new Error('Snapshot cannot be used outside of test')
+
+    if (typeof properties === 'object') {
+      if (typeof received !== 'object' || !received)
+        throw new Error('Received value must be an object when the matcher has properties')
+
+      try {
+        const pass = equals(received, properties, [iterableEquality, subsetEquality])
+        if (!pass)
+          expect(received).equals(properties)
+        else
+          received = deepMergeSnapshot(received, properties)
+      }
+      catch (err: any) {
+        err.message = 'Snapshot mismatched'
+        throw err
+      }
+    }
 
     const testName = [
       ...getNames(this.test).slice(1),
@@ -54,7 +73,8 @@ export class SnapshotClient {
       testName,
       received,
       isInline,
-      inlineSnapshot: inlineSnapshot?.trim(),
+      error,
+      inlineSnapshot,
     })
 
     if (!pass) {

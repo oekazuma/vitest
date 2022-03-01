@@ -1,11 +1,12 @@
-import { fileURLToPath, pathToFileURL } from 'url'
 import c from 'picocolors'
 import { isPackageExists } from 'local-pkg'
-import { dirname, resolve } from 'pathe'
+import { resolve } from 'pathe'
 import type { Suite, Task } from '../types'
-import { getNames, slash } from './tasks'
+import { getNames } from './tasks'
 
 export * from './tasks'
+export * from './path'
+export * from './base'
 
 export const isWindows = process.platform === 'win32'
 
@@ -55,6 +56,9 @@ export async function ensurePackageInstalled(
 
   if (install) {
     await (await import('@antfu/install-pkg')).installPackage(dependency, { dev: true })
+    // TODO: somehow it fails to load the package after installation, remove this when it's fixed
+    process.stderr.write(c.yellow(`\nPackage ${dependency} installed, re-run the command to start.\n`))
+    process.exit(1)
     return true
   }
 
@@ -62,61 +66,45 @@ export async function ensurePackageInstalled(
 }
 
 /**
- * Deep merge :P
+ * If code starts with a function call, will return its last index, respecting arguments.
+ * This will return 25 - last ending character of toMatch ")"
+ * Also works with callbacks
+ * ```
+ * toMatch({ test: '123' });
+ * toBeAliased('123')
+ * ```
  */
-export function deepMerge<T extends object = object>(target: T, ...sources: any[]): T {
-  if (!sources.length)
-    return target as any
+export function getCallLastIndex(code: string) {
+  let charIndex = -1
+  let inString: string | null = null
+  let startedBracers = 0
+  let endedBracers = 0
+  let beforeChar: string | null = null
+  while (charIndex <= code.length) {
+    beforeChar = code[charIndex]
+    charIndex++
+    const char = code[charIndex]
 
-  const source = sources.shift()
-  if (source === undefined)
-    return target as any
+    const isCharString = char === '"' || char === '\'' || char === '`'
 
-  if (isMergableObject(target) && isMergableObject(source)) {
-    Object.keys(source).forEach((key) => {
-      if (isMergableObject(source[key])) {
-        // @ts-expect-error
-        if (!target[key])
-          // @ts-expect-error
-          target[key] = {}
+    if (isCharString && beforeChar !== '\\') {
+      if (inString === char)
+        inString = null
+      else if (!inString)
+        inString = char
+    }
 
-        // @ts-expect-error
-        deepMerge(target[key], source[key])
-      }
-      else {
-        // @ts-expect-error
-        target[key] = source[key]
-      }
-    })
+    if (!inString) {
+      if (char === '(')
+        startedBracers++
+      if (char === ')')
+        endedBracers++
+    }
+
+    if (startedBracers && endedBracers && startedBracers === endedBracers)
+      return charIndex
   }
-
-  return deepMerge(target, ...sources)
-}
-
-function isMergableObject(item: any): item is Object {
-  return isObject(item) && !Array.isArray(item)
-}
-
-export function isObject(val: any): val is object {
-  return toString.call(val) === '[object Object]'
-}
-
-export function toFilePath(id: string, root: string): string {
-  let absolute = slash(id).startsWith('/@fs/')
-    ? id.slice(4)
-    : id.startsWith(dirname(root))
-      ? id
-      : id.startsWith('/')
-        ? slash(resolve(root, id.slice(1)))
-        : id
-
-  if (absolute.startsWith('//'))
-    absolute = absolute.slice(1)
-
-  // disambiguate the `<UNIT>:/` on windows: see nodejs/node#31710
-  return isWindows && absolute.startsWith('/')
-    ? fileURLToPath(pathToFileURL(absolute.slice(1)).href)
-    : absolute
+  return null
 }
 
 export { resolve as resolvePath }

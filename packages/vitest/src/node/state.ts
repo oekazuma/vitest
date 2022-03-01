@@ -1,4 +1,4 @@
-import type { File, Task, TaskResultPack } from '../types'
+import type { File, Task, TaskResultPack, UserConsoleLog } from '../types'
 
 export class StateManager {
   filesMap = new Map<string, File>()
@@ -9,6 +9,16 @@ export class StateManager {
     if (keys)
       return keys.map(key => this.filesMap.get(key)!)
     return Array.from(this.filesMap.values())
+  }
+
+  getFilepaths(): string[] {
+    return Array.from(this.filesMap.keys())
+  }
+
+  getFailedFilepaths() {
+    return this.getFiles()
+      .filter(i => i.result?.state === 'fail')
+      .map(i => i.filepath)
   }
 
   collectFiles(files: File[] = []) {
@@ -33,6 +43,15 @@ export class StateManager {
     for (const [id, result] of packs) {
       if (this.idMap.has(id))
         this.idMap.get(id)!.result = result
+    }
+  }
+
+  updateUserLog(log: UserConsoleLog) {
+    const task = log.taskId && this.idMap.get(log.taskId)
+    if (task) {
+      if (!task.logs)
+        task.logs = []
+      task.logs.push(log)
     }
   }
 }

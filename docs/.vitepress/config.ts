@@ -1,19 +1,41 @@
+
 import { defineConfig } from 'vitepress'
+import { version } from '../../package.json'
+import {
+  contributing,
+  discord,
+  font,
+  ogImage,
+  ogUrl,
+  releases,
+  twitter,
+  vitestDescription,
+  vitestName
+} from "../docs-data";
+// noinspection ES6PreferShortImport: IntelliJ IDE hint to avoid warning to use `~/contributors`, will fail on build if changed
+import { coreTeamMembers } from '../src/contributors'
 
 export default defineConfig({
-  title: 'Vitest',
-  description: 'A blazing fast unit test framework powered by Vite',
+  title: vitestName,
+  description: vitestDescription,
   head: [
-    ['meta', { property: 'og:title', content: 'Vitest' }],
-    ['meta', { property: 'og:description', content: 'A blazing fast unit test framework powered by Vite' }],
-    ['meta', { property: 'og:url', content: 'https://vitest.dev/' }],
-    ['meta', { property: 'og:image', content: 'https://vitest.dev/og.png' }],
-    ['meta', { name: 'twitter:title', content: 'Vitest' }],
-    ['meta', { name: 'twitter:description', content: 'A blazing fast unit test framework powered by Vite' }],
-    ['meta', { name: 'twitter:image', content: 'https://vitest.dev/og.png' }],
-    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'theme-color', content: '#ffffff' }],
     ['link', { rel: 'icon', href: '/logo.svg', type: 'image/svg+xml' }],
-    ['link', { href: 'https://fonts.googleapis.com/css2?family=Readex+Pro:wght@200;400;600&display=swap', rel: 'stylesheet' }],
+    ['link', { rel: 'alternate icon', href: '/favicon.ico', type: 'image/png', sizes: '16x16' }],
+    ['meta', { name: 'author', content: `${coreTeamMembers.map(c => c.name).join(', ')} and ${vitestName} contributors` }],
+    // TODO: review this
+    ['meta', { name: 'keywords', content: 'vitest, vite, test, coverage, snapshot, react, vue, preact, svelte, solid, lit, ruby, cypress, puppeteer, jsdom, happy-dom, test-runner, jest, typescript, esm, tinypool, tinyspy, c8, node' }],
+    ['meta', { property: 'og:title', content: vitestName }],
+    ['meta', { property: 'og:description', content: vitestDescription }],
+    ['meta', { property: 'og:url', content: ogUrl }],
+    ['meta', { property: 'og:image', content: ogImage }],
+    ['meta', { name: 'twitter:title', content: vitestName }],
+    ['meta', { name: 'twitter:description', content: vitestDescription }],
+    ['meta', { name: 'twitter:image', content: ogImage }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['link', { href: font, rel: 'stylesheet' }],
+    ['link', { rel: 'mask-icon', href: '/logo.svg', color: '#ffffff' }],
+    ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: "180x180" }],
   ],
   themeConfig: {
     repo: 'vitest-dev/vitest',
@@ -23,16 +45,17 @@ export default defineConfig({
     editLinks: true,
     editLinkText: 'Suggest changes to this page',
 
+    algolia: {
+      appId: 'ZTF29HGJ69',
+      apiKey: '9c3ced6fed60d2670bb36ab7e8bed8bc',
+      indexName: 'vitest'
+      // searchParameters: {
+      //   facetFilters: ['tags:en']
+      // }
+    },
+
     /* TODO
 
-    algolia: {
-      apiKey: '...',
-      indexName: 'vitest',
-      searchParameters: {
-        facetFilters: ['tags:en']
-      }
-    },
-    
     carbonAds: {
       carbon: '...',
       placement: 'vitest'
@@ -45,13 +68,26 @@ export default defineConfig({
       { text: 'Config', link: '/config/' },
       // { text: 'Plugins', link: '/plugins/' },
       {
+        text: `v${version}`,
+        items: [
+          {
+            text: 'Release Notes ',
+            link: releases,
+          },
+          {
+            text: 'Contributing ',
+            link: contributing,
+          },
+        ],
+
+      },
+      {
         text: 'Discord',
-        // TODO: 'https://chat.vitest.dev'
-        link: 'https://chat.vitest.dev'
+        link: discord,
       },
       {
         text: 'Twitter',
-        link: 'https://twitter.com/vitest_dev'
+        link: twitter,
       },
       /* TODO
       {
@@ -85,7 +121,8 @@ export default defineConfig({
           children: [
             {
               text: 'Why Vitest',
-              link: '/guide/why'
+              link: '/guide/why',
+
             },
             {
               text: 'Getting Started',
@@ -96,24 +133,12 @@ export default defineConfig({
               link: '/guide/features'
             },
             {
-              text: 'Mocking Functions',
+              text: 'Mocking',
               link: '/guide/mocking'
             },
             {
-              text: 'Mocking Modules',
-              link: '/guide/mocking-modules'
-            },
-            {
-              text: 'Mocking Timers',
-              link: '/guide/mocking-timers'
-            },
-            {
-              text: 'Mocking Date',
-              link: '/guide/mocking-date'
-            },
-            {
-              text: 'Mocking Requests',
-              link: '/guide/mocking-requests'
+              text: 'Debugging',
+              link: '/guide/debugging'
             },
             /* TODO
             {
@@ -124,7 +149,11 @@ export default defineConfig({
             {
               text: 'Comparisons',
               link: '/guide/comparisons'
-            }
+            },
+            {
+              text: 'Migration Guide',
+              link: '/guide/migration'
+            },
           ]
         },
         /* TODO

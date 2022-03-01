@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { mergeProps } from 'vue'
 import type { Task } from '#types'
 
 withDefaults(defineProps<{
@@ -22,10 +21,10 @@ export default {
 
 <template>
   <TaskItem
-    v-if="!search || task.name.match(search)"
+    v-if="!search || task.name.includes(search)"
     v-bind="$attrs"
     :task="task"
-    :style="{ paddingLeft: `${indent * 0.75 + 0.5}rem`}"
+    :style="{ paddingLeft: `${indent * 0.75 + 1}rem`}"
     @click="onItemClick && onItemClick(task)"
   />
   <div v-if="nested && task.type === 'suite' && task.tasks.length">

@@ -5,6 +5,8 @@ import { parse, stringify } from 'flatted'
 import type { WebSocketEvents, WebSocketHandlers } from 'vitest'
 import { StateManager } from '../../vitest/src/node/state'
 
+export * from '../../vitest/src/utils/tasks'
+
 export interface VitestClientOptions {
   handlers?: Partial<WebSocketEvents>
   autoReconnect?: boolean
@@ -45,8 +47,8 @@ export function createClient(url: string, options: VitestClientOptions = {}) {
   ctx.state.idMap = reactive(ctx.state.idMap)
 
   let onMessage: Function
-  ctx.rpc = createBirpc<WebSocketEvents, WebSocketHandlers>({
-    functions: {
+  ctx.rpc = createBirpc<WebSocketHandlers, WebSocketEvents>(
+    {
       onCollected(files) {
         ctx.state.collectFiles(files)
         handlers.onCollected?.(files)
@@ -55,16 +57,20 @@ export function createClient(url: string, options: VitestClientOptions = {}) {
         ctx.state.updateTasks(packs)
         handlers.onTaskUpdate?.(packs)
       },
+      onUserConsoleLog(log) {
+        ctx.state.updateUserLog(log)
+      },
+      onFinished(files) {
+        handlers.onFinished?.(files)
+      },
     },
-    post(msg) {
-      ctx.ws.send(msg)
+    {
+      post: msg => ctx.ws.send(msg),
+      on: fn => onMessage = fn,
+      serialize: stringify,
+      deserialize: parse,
     },
-    on(fn) {
-      onMessage = fn
-    },
-    serialize: stringify,
-    deserialize: parse,
-  })
+  )
 
   let openPromise: Promise<void>
 

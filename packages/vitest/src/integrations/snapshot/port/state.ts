@@ -9,7 +9,7 @@ import fs from 'fs'
 import type { Config } from '@jest/types'
 // import { getStackTraceLines, getTopFrame } from 'jest-message-util'
 import type { OptionsReceived as PrettyFormatOptions } from 'pretty-format'
-import type { SnapshotData, SnapshotMatchOptions, SnapshotStateOptions } from '../../../types'
+import type { ParsedStack, SnapshotData, SnapshotMatchOptions, SnapshotStateOptions } from '../../../types'
 import { slash } from '../../../utils'
 import { parseStacktrace } from '../../../utils/source-map'
 import type { InlineSnapshot } from './inlineSnapshot'
@@ -19,13 +19,14 @@ import {
   addExtraLineBreaks,
   getSnapshotData,
   keyToTestName,
+  prepareExpected,
   removeExtraLineBreaks,
   saveSnapshotFile,
   serialize,
   testNameToKey,
 } from './utils'
 
-type SnapshotReturnOptions = {
+interface SnapshotReturnOptions {
   actual: string
   count: number
   expected?: string
@@ -33,7 +34,7 @@ type SnapshotReturnOptions = {
   pass: boolean
 }
 
-type SaveStatus = {
+interface SaveStatus {
   deleted: boolean
   saved: boolean
 }
@@ -86,20 +87,32 @@ export default class SnapshotState {
     })
   }
 
+  private _getInlineSnapshotStack(stacks: ParsedStack[]) {
+    // if called inside resolves/rejects, stacktrace is different
+    const promiseIndex = stacks.findIndex(i => i.method.match(/__VITEST_(RESOLVES|REJECTS)__/))
+    if (promiseIndex !== -1)
+      return stacks[promiseIndex + 3]
+
+    // inline snapshot function is called __VITEST_INLINE_SNAPSHOT__
+    // in integrations/snapshot/chai.ts
+    const stackIndex = stacks.findIndex(i => i.method.includes('__VITEST_INLINE_SNAPSHOT__'))
+    return stackIndex !== -1 ? stacks[stackIndex + 2] : null
+  }
+
   private _addSnapshot(
     key: string,
     receivedSerialized: string,
-    options: {isInline: boolean; error?: Error},
+    options: { isInline: boolean; error?: Error },
   ): void {
     this._dirty = true
     if (options.isInline) {
       const error = options.error || new Error('Unknown error')
-      const stacks = parseStacktrace(error)
+      const stacks = parseStacktrace(error, true)
       stacks.forEach(i => i.file = slash(i.file))
-      const stack = stacks.find(i => process.__vitest_worker__.ctx.files.includes(i.file))
+      const stack = this._getInlineSnapshotStack(stacks)
       if (!stack) {
         throw new Error(
-          'Vitest: Couldn\'t infer stack frame for inline snapshot.',
+          `Vitest: Couldn't infer stack frame for inline snapshot.\n${JSON.stringify(stacks)}`,
         )
       }
       this._inlineSnapshots.push({
@@ -188,7 +201,8 @@ export default class SnapshotState {
 
     const receivedSerialized = addExtraLineBreaks(serialize(received, undefined, this._snapshotFormat))
     const expected = isInline ? inlineSnapshot : this._snapshotData[key]
-    const pass = expected?.trim() === receivedSerialized?.trim()
+    const expectedTrimmed = prepareExpected(expected)
+    const pass = expectedTrimmed === prepareExpected(receivedSerialized)
     const hasSnapshot = expected !== undefined
     const snapshotIsPersisted = isInline || fs.existsSync(this._snapshotPath)
 
@@ -205,7 +219,7 @@ export default class SnapshotState {
     // These are the conditions on when to write snapshots:
     //  * There's no snapshot file in a non-CI environment.
     //  * There is a snapshot file and we decided to update the snapshot.
-    //  * There is a snapshot file, but it doesn't have this snaphsot.
+    //  * There is a snapshot file, but it doesn't have this snapshot.
     // These are the conditions on when not to write snapshots:
     //  * The update flag is set to 'none'.
     //  * There's no snapshot file or a file without this snapshot on a CI environment.
@@ -247,9 +261,9 @@ export default class SnapshotState {
           actual: removeExtraLineBreaks(receivedSerialized),
           count,
           expected:
-             expected !== undefined
-               ? removeExtraLineBreaks(expected)
-               : undefined,
+          expectedTrimmed !== undefined
+            ? removeExtraLineBreaks(expectedTrimmed)
+            : undefined,
           key,
           pass: false,
         }
@@ -265,17 +279,5 @@ export default class SnapshotState {
         }
       }
     }
-  }
-
-  fail(testName: string, _received: unknown, key?: string): string {
-    this._counters.set(testName, (this._counters.get(testName) || 0) + 1)
-    const count = Number(this._counters.get(testName))
-
-    if (!key)
-      key = testNameToKey(testName, count)
-
-    this._uncheckedKeys.delete(key)
-    this.unmatched++
-    return key
   }
 }

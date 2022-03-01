@@ -1,35 +1,36 @@
 import { expect, test } from 'vitest'
+import { testOutsideInlineSnapshot } from './snapshots-outside'
 
-test('snapshot', () => {
+test('object', () => {
   expect({
     this: { is: new Set(['of', 'snapshot']) },
   }).toMatchSnapshot()
 })
 
-test('inline snapshot', () => {
-  expect('inline string').toMatchInlineSnapshot('"inline string"')
-  expect({ foo: { type: 'object', map: new Map() } }).toMatchInlineSnapshot(`
-{
-  "foo": {
-    "map": Map {},
-    "type": "object",
-  },
-}`)
+test('multiline', () => {
+  expect(`
+  Hello
+    World
+`).toMatchSnapshot()
 })
 
-test('snapshot with big array', () => {
+test('from outside', () => {
+  testOutsideInlineSnapshot()
+})
+
+test('with big array', () => {
   expect({
     this: { is: new Set(['one', new Array(30).fill({})]) },
   }).toMatchSnapshot()
 })
 
-test('snapshot with big string', () => {
+test('with big string', () => {
   expect({
     this: { is: new Set(['one', new Array(30).fill('zoo').join()]) },
   }).toMatchSnapshot()
 })
 
-test('throwing snapshots', () => {
+test('throwing', () => {
   expect(() => {
     throw new Error('omega')
   }).toThrowErrorMatchingSnapshot()
@@ -45,22 +46,29 @@ test('throwing snapshots', () => {
   }).toThrowErrorMatchingSnapshot()
 })
 
-test('throwing inline snapshots', () => {
-  expect(() => {
-    throw new Error('omega')
-  }).toThrowErrorMatchingInlineSnapshot('"omega"')
+test('properties snapshot', () => {
+  const user = {
+    createdAt: new Date(),
+    id: Math.floor(Math.random() * 20),
+    name: 'LeBron James',
+  }
 
-  expect(() => {
-    // eslint-disable-next-line no-throw-literal
-    throw 'omega'
-  }).toThrowErrorMatchingInlineSnapshot('"omega"')
+  expect(user).toMatchSnapshot({
+    createdAt: expect.any(Date),
+    id: expect.any(Number),
+    name: expect.stringContaining('LeBron'),
+  })
+})
 
-  expect(() => {
-    // eslint-disable-next-line no-throw-literal
-    throw { error: 'omega' }
-  }).toThrowErrorMatchingInlineSnapshot(`
-{
-  "error": "omega",
-}
-`)
+test.fails('properties snapshot fails', () => {
+  const user = {
+    createdAt: new Date(),
+    id: Math.floor(Math.random() * 20),
+    name: 'LeBron James',
+  }
+
+  expect(user).toMatchSnapshot({
+    createdAt: expect.any(Date),
+    id: expect.any(String),
+  })
 })

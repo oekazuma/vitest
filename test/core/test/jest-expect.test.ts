@@ -2,6 +2,8 @@
 /* eslint-disable no-sparse-arrays */
 import { describe, expect, it } from 'vitest'
 
+class TestError extends Error {}
+
 describe('jest-expect', () => {
   it('basic', () => {
     expect(1).toBe(1)
@@ -20,15 +22,46 @@ describe('jest-expect', () => {
     expect([{ text: 'Hello' }]).toContainEqual({ text: 'Hello' })
     expect([{ text: 'Bye' }]).not.toContainEqual({ text: 'Hello' })
     expect(1).toBeGreaterThan(0)
+
+    expect(BigInt(1)).toBeGreaterThan(BigInt(0))
+    expect(1).toBeGreaterThan(BigInt(0))
+    expect(BigInt(1)).toBeGreaterThan(0)
+
     expect(1).toBeGreaterThanOrEqual(1)
     expect(1).toBeGreaterThanOrEqual(0)
+
+    expect(BigInt(1)).toBeGreaterThanOrEqual(BigInt(1))
+    expect(BigInt(1)).toBeGreaterThanOrEqual(BigInt(0))
+    expect(BigInt(1)).toBeGreaterThanOrEqual(1)
+    expect(1).toBeGreaterThanOrEqual(BigInt(1))
+
     expect(0).toBeLessThan(1)
+    expect(BigInt(0)).toBeLessThan(BigInt(1))
+    expect(BigInt(0)).toBeLessThan(1)
+
     expect(1).toBeLessThanOrEqual(1)
     expect(0).toBeLessThanOrEqual(1)
+    expect(BigInt(1)).toBeLessThanOrEqual(BigInt(1))
+    expect(BigInt(0)).toBeLessThanOrEqual(BigInt(1))
+    expect(BigInt(1)).toBeLessThanOrEqual(1)
+    expect(1).toBeLessThanOrEqual(BigInt(1))
+
     expect(() => {
       throw new Error('this is the error message')
     }).toThrow('this is the error message')
     expect(() => {}).not.toThrow()
+    expect(() => {
+      throw new TestError('error')
+    }).toThrow(TestError)
+    const err = new Error('hello world')
+    expect(() => {
+      throw err
+    }).toThrow(err)
+    expect(() => {
+      throw new Error('message')
+    }).toThrow(expect.objectContaining({
+      message: expect.stringContaining('mes'),
+    }))
     expect([1, 2, 3]).toHaveLength(3)
     expect('abc').toHaveLength(3)
     expect('').not.toHaveLength(5)
@@ -81,21 +114,6 @@ describe('jest-expect', () => {
     expect(['Bob', 'Eve']).toEqual(expect.not.arrayContaining(['Steve']))
   })
 
-  it('asymmetric matchers (chai style)', () => {
-    expect({ foo: 'bar' }).equal({ foo: expect.stringContaining('ba') })
-    expect('bar').equal(expect.stringContaining('ba'))
-    expect(['bar']).equal([expect.stringContaining('ba')])
-    expect({ foo: 'bar', bar: 'foo', hi: 'hello' }).equal({
-      foo: expect.stringContaining('ba'),
-      bar: expect.stringContaining('fo'),
-      hi: 'hello',
-    })
-
-    expect({ foo: 'bar' }).not.equal({ foo: expect.stringContaining('zoo') })
-    expect('bar').not.equal(expect.stringContaining('zoo'))
-    expect(['bar']).not.equal([expect.stringContaining('zoo')])
-  })
-
   it('object', () => {
     expect({}).toEqual({})
     expect({ apples: 13 }).toEqual({ apples: 13 })
@@ -112,6 +130,7 @@ describe('jest-expect', () => {
     expect([complex]).toMatchObject([{ foo: 1 }])
     expect(complex).not.toMatchObject({ foo: 2 })
     expect(complex).toMatchObject({ bar: { bar: 100 } })
+    expect(complex).toMatchObject({ foo: expect.any(Number) })
 
     expect(complex).toHaveProperty('foo')
     expect(complex).toHaveProperty('foo', 1)
@@ -158,7 +177,7 @@ describe('jest-expect', () => {
   // https://jestjs.io/docs/expect#tostrictequalvalue
 
   class LaCroix {
-    constructor(public flavor) {}
+    constructor(public flavor: any) {}
   }
 
   describe('the La Croix cans on my desk', () => {
@@ -173,7 +192,7 @@ describe('jest-expect', () => {
     expect([]).not.toBe([])
     expect([]).toStrictEqual([])
 
-    const foo = []
+    const foo: any[] = []
 
     expect(foo).toBe(foo)
     expect(foo).toStrictEqual(foo)
@@ -195,21 +214,21 @@ describe('jest-expect', () => {
 
 describe('.toStrictEqual()', () => {
   class TestClassA {
-    constructor(public a, public b) {}
+    constructor(public a: any, public b: any) {}
   }
 
   class TestClassB {
-    constructor(public a, public b) {}
+    constructor(public a: any, public b: any) {}
   }
 
   const TestClassC = class Child extends TestClassA {
-    constructor(a, b) {
+    constructor(a: any, b: any) {
       super(a, b)
     }
   }
 
   const TestClassD = class Child extends TestClassB {
-    constructor(a, b) {
+    constructor(a: any, b: any) {
       super(a, b)
     }
   }
@@ -291,6 +310,33 @@ describe('.toStrictEqual()', () => {
   })
 })
 
+describe('toBeTypeOf()', () => {
+  it.each([
+    [1n, 'bigint'],
+    [true, 'boolean'],
+    [false, 'boolean'],
+    [() => {}, 'function'],
+    [function() {}, 'function'],
+    [1, 'number'],
+    [Infinity, 'number'],
+    [NaN, 'number'],
+    [0, 'number'],
+    [{}, 'object'],
+    [[], 'object'],
+    [null, 'object'],
+    ['', 'string'],
+    ['test', 'string'],
+    [Symbol('test'), 'symbol'],
+    [undefined, 'undefined'],
+  ] as const)('pass with typeof %s === %s', (actual, expected) => {
+    expect(actual).toBeTypeOf(expected)
+  })
+
+  it('pass with negotiation', () => {
+    expect('test').not.toBeTypeOf('number')
+  })
+})
+
 describe('async expect', () => {
   it('resolves', async() => {
     await expect((async() => 'true')()).resolves.toBe('true')
@@ -310,6 +356,18 @@ describe('async expect', () => {
     await expect((async() => {
       throw new Error('err')
     })()).rejects.toThrow('err')
+    expect((async() => {
+      throw new TestError('error')
+    })()).rejects.toThrow(TestError)
+    const err = new Error('hello world')
+    expect((async() => {
+      throw err
+    })()).rejects.toThrow(err)
+    expect((async() => {
+      throw new Error('message')
+    })()).rejects.toThrow(expect.objectContaining({
+      message: expect.stringContaining('mes'),
+    }))
 
     await expect((async() => {
       throw new Error('err')

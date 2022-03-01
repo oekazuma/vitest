@@ -17,7 +17,9 @@ For compatibility with Jest, `TestFunction` can also be of type `(done: DoneCall
 - **Type:** `(name: string, fn: TestFunction, timeout?: number) => void`
 - **Alias:** `it`
 
-  `test` defines a set of related expectations. Default timeout for tests is 5 seconds, and can be configured globally with [testTimeout](../config/#testtimeout).
+  `test` defines a set of related expectations. It receives the test name and a function that holds the expectations to test.
+
+  Optionally, you can provide a timeout (in milliseconds) for specifying how long to wait before terminating. The default is 5 seconds, and can be configured globally with [testTimeout](/config/#testtimeout)
 
   ```ts
   import { test, expect } from 'vitest'
@@ -30,10 +32,13 @@ For compatibility with Jest, `TestFunction` can also be of type `(done: DoneCall
 ### test.skip
 
 - **Type:** `(name: string, fn: TestFunction, timeout?: number) => void`
+- **Alias:** `it.skip`
 
-  Use `.skip` to avoid running certain tests
+  If you want to skip running certain tests, but you don't want to delete the code due to any reason, you can use `test.skip` to avoid running them.
 
   ```ts
+  import { test, assert } from 'vitest'
+
   test.skip("skipped test", () => {
     // Test skipped, no error
     assert.equal(Math.sqrt(4), 3);
@@ -43,10 +48,15 @@ For compatibility with Jest, `TestFunction` can also be of type `(done: DoneCall
 ### test.only
 
 - **Type:** `(name: string, fn: TestFunction, timeout?: number) => void`
+- **Alias:** `it.only`
 
-  Use `.only` to only run certain tests in a given suite
+  Use `test.only` to only run certain tests in a given suite. This is useful when debugging.
+
+  Optionally, you can provide a timeout (in milliseconds) for specifying how long to wait before terminating. The default is 5 seconds, and can be configured globally with [testTimeout](/config/#testtimeout).
 
   ```ts
+  import { test, assert } from 'vitest'
+
   test.only("test", () => {
     // Only this test (and others marked with only) are run
     assert.equal(Math.sqrt(4), 2);
@@ -56,10 +66,13 @@ For compatibility with Jest, `TestFunction` can also be of type `(done: DoneCall
 ### test.concurrent
 
 - **Type:** `(name: string, fn: TestFunction, timeout?: number) => void`
+- **Alias:** `it.concurrent`
 
-  `.concurrent` marks consecutive tests to be run them in parallel. It receives the test name, an async function with the tests to collect, and an optional timeout (in milliseconds).
+  `test.concurrent` marks consecutive tests to be run them in parallel. It receives the test name, an async function with the tests to collect, and an optional timeout (in milliseconds).
 
   ```ts
+  import { describe, test } from 'vitest'
+
   // The two tests marked with concurrent will be run in parallel
   describe("suite", () => {
     test("serial test", async() => { /* ... */ });
@@ -68,7 +81,7 @@ For compatibility with Jest, `TestFunction` can also be of type `(done: DoneCall
   });
   ```
 
-  `.skip`, `.only`, and `.todo` works with concurrent tests. All the following combinations are valid:
+  `test.skip`, `test.only`, and `test.todo` works with concurrent tests. All the following combinations are valid:
 
   ```ts
   test.concurrent(...)
@@ -80,25 +93,94 @@ For compatibility with Jest, `TestFunction` can also be of type `(done: DoneCall
 ### test.todo
 
 - **Type:** `(name: string) => void`
+- **Alias:** `it.todo`
 
-  Use `.todo` to stub tests to be implemented later
+  Use `test.todo` to stub tests to be implemented later. An entry will be shown in the report for the tests so you know how many tests you still need to implement.
 
   ```ts
   // An entry will be shown in the report for this test
   test.todo("unimplemented test");
   ```
 
+### test.fails
+
+- **Type:** `(name: string, fn: TestFunction, timeout?: number) => void`
+- **Alias:** `it.fails`
+
+  Use `test.fails` to indicate that an assertion will fail explicitly.
+
+  ```ts
+  import { test } from 'vitest'
+  const myAsyncFunc = () => new Promise((resolve) => resolve(1))
+  test.fails("fail test", () => {
+    expect(myAsyncFunc()).rejects.toBe(1)
+  })
+  ```
+
 ## describe
 
 When you use `test` in the top level of file, they are collected as part of the implicit suite for it. Using `describe` you can define a new suite in the current context, as a set of related tests and other nested suites. A suite lets you organize your tests so reports are more clear.
 
-### describe.skip
+  ```ts
+  import { describe, test } from 'vitest'
 
-- **Type:** `(name: string, fn: TestFunction, timeout?: number) => void`
+  const person = {
+    isActive: true,
+    age: 32,
+  };
 
-  Use `.skip` in a suite to avoid running it
+  describe('person', () => {
+    test('person is defined', () => {
+      expect(person).toBeDefined()
+    });
+
+    test('is active', () => {
+      expect(person.isActive).toBeTruthy();
+    });
+
+    test('age limit', () => {
+      expect(person.age).toBeLessThanOrEqual(32);
+    });
+  });
+  ```
+
+  You can also nest describe blocks if you have a hierarchy of tests:
 
   ```ts
+  import { describe, test, expect } from 'vitest'
+
+  const numberToCurrency = (value) => {
+    if (typeof value !== 'number') {
+        throw new Error(`Value must be a number`);
+    }
+
+    return value.toFixed(2).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  describe('numberToCurrency', () => {
+    describe('given an invalid number', () => {
+      test('composed of non-numbers to throw error', () => {
+        expect(() => numberToCurrency('abc')).toThrow();
+      });
+    });
+
+    describe('given a valid number', () => {
+      test('returns the correct currency format', () => {
+        expect(numberToCurrency(10000)).toBe('10,000.00');
+      });
+    });
+  });
+  ```
+
+### describe.skip
+
+- **Type:** `(name: string, fn: TestFunction) => void`
+
+  Use `describe.skip` in a suite to avoid running a particular describe block.
+
+  ```ts
+  import { describe, test } from 'vitest'
+
   describe.skip("skipped suite", () => {
     test("sqrt", () => {
       // Suite skipped, no error
@@ -109,9 +191,9 @@ When you use `test` in the top level of file, they are collected as part of the 
 
 ### describe.only
 
-- **Type:** `(name: string, fn: TestFunction, timeout?: number) => void`
+- **Type:** `(name: string, fn: TestFunction) => void`
 
-  Use `.only` to only run certain suites
+  Use `describe.only` to only run certain suites
 
   ```ts
   // Only this suite (and others marked with only) are run
@@ -120,13 +202,17 @@ When you use `test` in the top level of file, they are collected as part of the 
       assert.equal(Math.sqrt(4), 3);
     });
   });
+
+  describe('other suite', () => {
+    // ... will be skipped
+  });
   ```
 
 ### describe.concurrent
 
 - **Type:** `(name: string, fn: TestFunction, timeout?: number) => void`
 
-  `.concurrent` in a suite marks every tests as concurrent
+  `describe.concurrent` in a suite marks every tests as concurrent
 
   ```ts
   // All tests within this suite will be run in parallel
@@ -150,7 +236,7 @@ When you use `test` in the top level of file, they are collected as part of the 
 
 - **Type:** `(name: string) => void`
 
-  Use `.todo` to stub suites to be implemented later
+  Use `describe.todo` to stub suites to be implemented later. An entry will be shown in the report for the tests so you know how many tests you still need to implement.
 
   ```ts
   // An entry will be shown in the report for this suite
@@ -177,10 +263,6 @@ When you use `test` in the top level of file, they are collected as part of the 
   Technically this example doesn't use [`test`](#test) function, so in the console you will see Nodejs error instead of Vitest output. To learn more about `test`, please read [next chapter](#test).
 
   Also, `expect` can be used statically to access matchers functions, described later, and more.
-
-  :::warning
-  To provide compatibility with [asymmetric matchers](#expectany), Vitest wraps `.eql` and `.equals` chai assertions, so if you need to use chai equality, you can use `.chaiEqual` matcher.
-  :::
 
 ### not
 
@@ -266,7 +348,7 @@ TODO
     if(stock === 'Bill') return 13
   }
 
-  test('mary doesnt have a stock', () => {
+  test('mary doesn\'t have a stock', () => {
     expect(getApplesFromStock('Mary')).toBeUndefined()
   })
   ```
@@ -375,6 +457,21 @@ TODO
   })
   ```
 
+### toBeTypeOf
+
+- **Type:** `(c: 'bigint' | 'boolean' | 'function' | 'number' | 'object' | 'string' | 'symbol' | 'undefined') => Awaitable<void>`
+
+  `toBeTypeOf` asserts if an actual value is of type of received type.
+
+  ```ts
+  import { test, expect } from 'vitest'
+  const actual = 'stock'
+
+  test('stock is type of string', () => {
+    expect(actual).toBeTypeOf('string')
+  })
+  ```
+
 ### toBeInstanceOf
 
 - **Type:** `(c: any) => Awaitable<void>`
@@ -393,7 +490,7 @@ TODO
 
 ### toBeGreaterThan
 
-- **Type:** `(n: number) => Awaitable<void>`
+- **Type:** `(n: number | bigint) => Awaitable<void>`
 
   `toBeGreaterThan` asserts if actual value is greater than received one. Equal values will fail the test.
 
@@ -408,7 +505,7 @@ TODO
 
 ### toBeGreaterThanOrEqual
 
-- **Type:** `(n: number) => Awaitable<void>`
+- **Type:** `(n: number | bigint) => Awaitable<void>`
 
   `toBeGreaterThanOrEqual` asserts if actual value is greater than received one or equal to it.
 
@@ -423,7 +520,7 @@ TODO
 
 ### toBeLessThan
 
-- **Type:** `(n: number) => Awaitable<void>`
+- **Type:** `(n: number | bigint) => Awaitable<void>`
 
   `toBeLessThan` asserts if actual value is less than received one. Equal values will fail the test.
 
@@ -438,7 +535,7 @@ TODO
 
 ### toBeLessThanOrEqual
 
-- **Type:** `(n: number) => Awaitable<void>`
+- **Type:** `(n: number | bigint) => Awaitable<void>`
 
   `toBeLessThanOrEqual` asserts if actual value is less than received one or equal to it.
 
@@ -459,7 +556,6 @@ TODO
 
   ```ts
   import { test, expect } from 'vitest'
-  import { getApples } from './stock'
 
   const stockBill = {
     type: 'apples',
@@ -481,7 +577,7 @@ TODO
   ```
 
   :::warning
-  A _deep equality_ will not be performed for `Error` objects. To test if something was thrown, use [`toTrow`](#tothrow) assertion.
+  A _deep equality_ will not be performed for `Error` objects. To test if something was thrown, use [`toThrow`](#tothrow) assertion.
   :::
 
 ### toStrictEqual
@@ -512,15 +608,208 @@ TODO
   ```
 
 ### toContain
+
+- **Type:** `(received: string) => Awaitable<void>`
+
+  `toContain` asserts if actual value is in an array. `toContain` can also check whether a string is a substring of another string.
+
+  ```ts
+  import { expect, test } from 'vitest'
+  import { getAllFruits } from './stock'
+
+  test('the fruit list contains orange', () => {
+    expect(getAllFruits()).toContain('orange');
+  })
+  ```
+
 ### toContainEqual
 
+- **Type:** `(received: any) => Awaitable<void>`
+
+  `toContainEqual` asserts if an item with a specific structure and values is contained in an array.
+  It works like [`toEqual`](#toequal) inside for each element.
+
+  ```ts
+  import { test, expect } from 'vitest'
+  import { getFruitStock } from './stock'
+
+  test("apple available", () => {
+    expect(getFruitStock()).toContainEqual({ fruit: 'apple', count: 5 })
+  })
+  ```
+
 ### toHaveLength
+
+- **Type:** `(received: number) => Awaitable<void>`
+
+  `toHaveLength` asserts if an object has a `.length` property and it is set to a certain numeric value.
+
+  ```ts
+  import { test, expect } from 'vitest'
+
+  test('toHaveLength', () => {
+    expect('abc').toHaveLength(3);
+    expect([1, 2, 3]).toHaveLength(3);
+
+    expect('').not.toHaveLength(3); // doesn't have .length of 3
+    expect({ length: 3 }).toHaveLength(3)
+  })
+  ```
+
 ### toHaveProperty
 
+- **Type:** `(key: any, received?: any) => Awaitable<void>`
+
+  `toHaveProperty` asserts if a property at provided reference `key` exists for an object.
+
+  You can provide an optional value argument also known as deep equality, like the `toEqual` matcher to compare the received property value.
+
+  ```ts
+  import { test, expect } from 'vitest'
+
+  const invoice = {
+    isActive: true,
+    customer: {
+      first_name: 'John',
+      last_name: 'Doe',
+      location: 'China',
+    },
+    total_amount: 5000,
+    items: [
+      {
+        type: 'apples',
+        quantity: 10,
+      },
+      {
+        type: 'oranges',
+        quantity: 5,
+      },
+    ]
+  }
+
+  test('John Doe Invoice', () => {
+    expect(invoice).toHaveProperty('isActive') // assert that the key exists
+    expect(invoice).toHaveProperty('total_amount', 5000) //assert that the key exists and the value is equal
+
+    expect(invoice).not.toHaveProperty('account') //assert that this key does not exist
+
+    // Deep referencing using dot notation
+    expect(invoice).toHaveProperty('customer.first_name')
+    expect(invoice).toHaveProperty('customer.last_name', 'Doe')
+    expect(invoice).not.toHaveProperty('customer.location', 'India')
+
+    // Deep referencing using an array containing the key
+    expect(invoice).toHaveProperty('items[0].type', 'apples')
+    expect(invoice).toHaveProperty('items.0.type', 'apples') // dot notation also works
+
+  })
+  ```
+
 ### toMatch
+
+- **Type:** `(received: string | regexp) => Awaitable<void>`
+
+  `toMatch` asserts if a string matches a regular expression or a string.
+
+  ```ts
+  import { expect, test } from 'vitest'
+
+  test('top fruits', () => {
+    expect('top fruits include apple, orange and grape').toMatch(/apple/)
+    expect('applefruits').toMatch('fruit') // toMatch also accepts a string
+  })
+  ```
+
 ### toMatchObject
 
+- **Type:** `(received: object | array) => Awaitable<void>`
+
+  `toMatchObject` asserts if an object matches a subset of the properties of an object.
+
+  You can also pass an array of objects. This is useful if you want to check that two arrays match in their number of elements, as opposed to `arrayContaining`, which allows for extra elements in the received array.
+
+  ```ts
+  import { test, expect } from 'vitest'
+
+  const johnInvoice = {
+    isActive: true,
+    customer: {
+      first_name: 'John',
+      last_name: 'Doe',
+      location: 'China',
+    },
+    total_amount: 5000,
+    items: [
+      {
+        type: 'apples',
+        quantity: 10,
+      },
+      {
+        type: 'oranges',
+        quantity: 5,
+      }
+    ]
+  }
+
+  const johnDetails = {
+    customer: {
+      first_name: 'John',
+      last_name: 'Doe',
+      location: 'China',
+    }
+  }
+
+  test('invoice has john personal details', () => {
+    expect(johnInvoice).toMatchObject(johnDetails)
+  })
+
+  test('the number of elements must match exactly', () => {
+    // Assert that an array of object matches
+    expect([{ foo: 'bar' }, { baz: 1 }]).toMatchObject([
+      { foo: 'bar' },
+      { baz: 1 },
+    ])
+  })
+  ```
+
 ### toThrowError
+
+- **Type:** `(received: any) => Awaitable<void>`
+
+  `toThrowError` asserts if a function throws an error when it is called.
+
+  For example, if we want to test that `getFruitStock('pineapples')` throws, because pineapples is not good for people with diabetes, we could write:
+
+  You can provide an optional argument to test that a specific error is thrown:
+
+  - regular expression: error message matches the pattern
+  - string: error message includes the substring
+
+  :::tip
+    You must wrap the code in a function, otherwise the error will not be caught and the assertion will fail.
+  :::
+
+  ```ts
+  import { test, expect } from 'vitest'
+
+  function getFruitStock(type) {
+    if (type === 'pineapples') {
+      throw new DiabetesError('Pineapples is not good for people with diabetes')
+    }
+    // Do some other stuff
+  }
+
+  test('throws on pineapples', () => {
+    // Test that the error message says "diabetes" somewhere: these are equivalent
+    expect(() => getFruitStock('pineapples')).toThrowError(/diabetes/)
+    expect(() => getFruitStock('pineapples')).toThrowError('diabetes')
+
+    // Test the exact error message
+    expect(() => getFruitStock('pineapples')).toThrowError(
+      /^Pineapples is not good for people with diabetes$/,
+    )
+  })
+  ```
 
 // snapshots
 
@@ -659,7 +948,7 @@ TODO
       // should be called on select
       expect(data).toBeTruthy();
     })
-    // if not awated, test will fail
+    // if not awaited, test will fail
     // if you dont have expect.hasAssertions(), test will pass
     await select(3)
   })
@@ -710,7 +999,7 @@ These functions allows you to hook into the life cycle of tests to avoid repeati
 
 - **Type:** `afterEach(fn: () => Awaitable<void>, timeout?: number)`
 
-  Register a callback to be called after each one of the tests in the current context completes. 
+  Register a callback to be called after each one of the tests in the current context completes.
   If the function returns a promise, Vitest waits until the promise resolve before continuing.
 
   Optionally, you can a timeout (in milliseconds) for specifying how long to wait before terminating. The default is 5 seconds.
@@ -728,7 +1017,7 @@ These functions allows you to hook into the life cycle of tests to avoid repeati
 
 - **Type:** `beforeAll(fn: () => Awaitable<void>, timeout?: number)`
 
-  Register a callback to be called once before starting to run all tests in the current context. 
+  Register a callback to be called once before starting to run all tests in the current context.
   If the function returns a promise, Vitest waits until the promise resolve before running tests.
 
   Optionally, you can provide a timeout (in milliseconds) for specifying how long to wait before terminating. The default is 5 seconds.
@@ -762,4 +1051,462 @@ These functions allows you to hook into the life cycle of tests to avoid repeati
 
   Here the `afterAll` ensures that `stopMocking` method is called after all tests run.
 
+## Vi
+Vitest provides utility functions to help you out through it's **vi** helper. You can `import { vi } from 'vitest'` or access it **globally** (when [global configuration](/config/#global) is **enabled**).
 
+### vi.advanceTimersByTime
+
+- **Type:** `(ms: number) => Vitest`
+
+  Works just like `runAllTimers`, but will end after passed milliseconds. For example this will log `1, 2, 3` and will not throw:
+
+  ```ts
+  let i = 0
+  setInterval(() => console.log(++i), 50)
+
+  vi.advanceTimersByTime(150)
+  ```
+
+### vi.advanceTimersToNextTimer
+
+- **Type:** `() => Vitest`
+
+  Will call next available timer. Useful to make assertions between each timer call. You can chain call it to manage timers by yourself.
+
+  ```ts
+  let i = 0
+  setInterval(() => console.log(++i), 50)
+
+  vi.advanceTimersToNextTimer() // log 1
+    .advanceTimersToNextTimer() // log 2
+    .advanceTimersToNextTimer() // log 3
+  ```
+
+### vi.clearAllTimers
+
+  Removes all timers that are scheduled to run. These timers will never run in the future.
+
+### vi.fn
+
+- **Type:** `(fn: Function) => CallableMockInstance`
+
+  Creates a spy on a function, though can be initiated without one. Every time a function is invoked, it stores its call arguments, returns and instances. Also, you can manipulate its behavior with [methods](#mockmethods).
+  If no function is given, mock will return `undefined`, when invoked.
+
+  ```ts
+  const getApples = vi.fn(() => 0)
+
+  getApples()
+
+  expect(getApples).toHaveBeenCalled()
+  expect(getApples).toHaveReturnedWith(0)
+
+  getApples.mockReturnOnce(5)
+
+  const res = getApples()
+  expect(res).toBe(5)
+  expect(getApples).toHaveReturnedNthTimeWith(1, 5)
+  ```
+
+### vi.getMockedSystemTime
+
+- **Type**: `() => Date | null`
+
+  Returns mocked current date that was set using `setSystemTime`. If date is not mocked, will return `null`.
+
+### vi.getRealSystemTime
+
+- **Type**: `() => number`
+
+  When using `vi.useFakeTimers`, `Date.now` calls are mocked. If you need to get real time in milliseconds, you can call this function.
+
+### vi.mock
+
+- **Type**: `(path: string, factory?: () => unknown) => void`
+
+  Makes all `imports` to passed module to be mocked. Inside a path you _can_ use configured Vite aliases.
+
+  - If `factory` is defined, will return its result. Factory function can be asynchronous. You may call [`vi.importActual`](#vi-importactual) inside to get the original module. The call to `vi.mock` is hoisted to the top of the file, so you don't have access to variables declared in the global file scope!
+  - If `__mocks__` folder with file of the same name exist, all imports will return its exports. For example, `vi.mock('axios')` with `<root>/__mocks__/axios.ts` folder will return everything exported from `axios.ts`.
+  - If there is no `__mocks__` folder or a file with the same name inside, will call original module and mock it. (For the rules applied, see [algorithm](/guide/mocking#automocking-algorithm).)
+
+### vi.setSystemTime
+
+- **Type**: `(date: string | number | Date) => void`
+
+  Sets current date to the one that was passed. All `Date` calls will return this date.
+
+  Useful if you need to test anything that depends on the current date - for example [luxon](https://github.com/moment/luxon/) calls inside your code.
+
+  ```ts
+  const date = new Date(1998, 11, 19)
+
+  vi.useFakeTimers()
+  vi.setSystemTime(date)
+
+  expect(Date.now()).toBe(date.valueOf())
+
+  vi.useRealTimers()
+  ```
+
+### vi.mocked
+
+- **Type**: `<T>(obj: T, deep?: boolean) => MaybeMockedDeep<T>`
+
+  Type helper for TypeScript. In reality just returns the object that was passed.
+
+  ```ts
+  import example from './example'
+  vi.mock('./example')
+
+  test('1+1 equals 2' async () => {
+   vi.mocked(example.calc).mockRestore()
+
+   const res = example.calc(1, '+', 1)
+
+   expect(res).toBe(2)
+  })
+  ```
+
+### vi.importActual
+
+- **Type**: `<T>(path: string) => Promise<T>`
+
+  Imports module, bypassing all checks if it should be mocked. Can be useful if you want to mock module partially.
+
+  ```ts
+  vi.mock('./example', async () => {
+    const axios = await vi.importActual('./example')
+
+    return { ...axios, get: vi.fn() }
+  })
+   ```
+
+### vi.importMock
+
+- **Type**: `<T>(path: string) => Promise<MaybeMockedDeep<T>>`
+
+  Imports a module with all of its properties (including nested properties) mocked. Follows the same rules that [`vi.mock`](#mock) follows. For the rules applied, see [algorithm](#automockingalgorithm).
+
+### vi.restoreCurrentDate
+
+- **Type**: `() => void`
+
+  Restores `Date` back to its native implementation.
+
+### vi.runAllTicks
+
+- **Type:** `() => Vitest`
+
+  Calls every microtask. These are usually queued by `proccess.nextTick`. This will also run all microtasks scheduled by themselves.
+
+### vi.runAllTimers
+
+- **Type:** `() => Vitest`
+
+  This method will invoke every initiated timer until the timers queue is empty. It means that every timer called during `runAllTimers` will be fired. If you have an infinite interval,
+  it will throw after 10 000 tries. For example this will log `1, 2, 3`:
+
+  ```ts
+  let i = 0
+  setTimeout(() => console.log(++i))
+  let interval = setInterval(() => {
+      console.log(++i)
+      if (i === 2) {
+          clearInterval(interval)
+      }
+  }, 50)
+
+  vi.runAllTimers()
+  ```
+
+### vi.runOnlyPendingTimers
+
+- **Type:** `() => Vitest`
+
+  This method will call every timer that was initiated after `vi.useFakeTimers()` call. It will not fire any timer that was initiated during its call. For example this will only log `1`:
+
+  ```ts
+  let i = 0
+  setInterval(() => console.log(++i), 50)
+
+  vi.runOnlyPendingTimers()
+  ```
+
+### vi.spyOn
+
+- **Type:** `<T, K extends keyof T>(object: T, method: K, accessType?: 'get' | 'set') => MockInstance`
+
+  Creates a spy on a method or getter/setter of an object.
+
+  ```ts
+  let apples = 0
+  const obj = {
+    getApples: () => 13,
+  }
+
+  const spy = vi.spyOn(obj, 'getApples').mockImplementation(() => apples)
+  apples = 1
+
+  expect(obj.getApples()).toBe(1)
+
+  expect(spy).toHaveBeenCalled()
+  expect(spy).toHaveReturnedWith(1)
+  ```
+### vi.unmock
+
+**Type**: `(path: string) => void`
+
+  Removes module from mocked registry. All subsequent calls to import will return original module even if it was mocked.
+
+### vi.useFakeTimers
+
+- **Type:** `() => Vitest`
+
+  To enable mocking timers, you need to call this method. It will wrap all further calls to timers (such as `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `nextTick`, `setImmediate`, `clearImmediate`, and `Date`), until [`vi.useRealTimers()`](#userealtimers) is called.
+
+  The implementation is based internally on [`@sinonjs/fake-timers`](https://github.com/sinonjs/fake-timers).
+
+### vi.useRealTimers
+
+- **Type:** `() => Vitest`
+
+  When timers are run out, you may call this method to return mocked timers to its original implementations. All timers that were run before will not be restored.
+
+## MockInstance Methods
+
+### getMockName
+
+- **Type:** `() => string`
+
+  Use it to return the name given to mock with method `.mockName(name)`.
+
+### mockClear
+
+- **Type:** `() => MockInstance`
+
+  Clears all information about every call. After calling it, [`spy.mock.calls`](#mockcalls), [`spy.mock.returns`](#mockreturns) will return empty arrays. It is useful if you need to clean up spy between different assertions.
+
+  If you want this method to be called before each test automatically, you can enable [`clearMocks`](/config/#clearMocks) setting in config.
+
+
+### mockName
+
+- **Type:** `(name: string) => MockInstance`
+
+  Sets internal mock name. Useful to see what mock has failed the assertion.
+
+### mockImplementation
+
+- **Type:** `(fn: Function) => MockInstance`
+
+  Accepts a function that will be used as an implementation of the mock.
+
+  For example:
+
+  ```ts
+  const mockFn = vi.fn().mockImplementation(apples => apples + 1);
+  // or: vi.fn(apples => apples + 1);
+
+  const NelliesBucket = mockFn(0);
+  const BobsBucket = mockFn(1);
+
+  NelliesBucket === 1; // true
+  BobsBucket === 2; // true
+
+  mockFn.mock.calls[0][0] === 0; // true
+  mockFn.mock.calls[1][0] === 1; // true
+  ```
+
+### mockImplementationOnce
+
+- **Type:** `(fn: Function) => MockInstance`
+
+  Accepts a function that will be used as an implementation of the mock for one call to the mocked function. Can be chained so that multiple function calls produce different results.
+
+  ```ts
+  const myMockFn = vi
+    .fn()
+    .mockImplementationOnce(() => true)
+    .mockImplementationOnce(() => false);
+
+  myMockFn(); // true
+  myMockFn(); // false
+  ```
+
+  When the mocked function runs out of implementations, it will invoke the default implementation that was set with `vi.fn(() => defaultValue)` or `.mockImplementation(() => defaultValue)` if they were called:
+
+  ```ts
+  const myMockFn = vi
+    .fn(() => 'default')
+    .mockImplementationOnce(() => 'first call')
+    .mockImplementationOnce(() => 'second call');
+
+  // 'first call', 'second call', 'default', 'default'
+  console.log(myMockFn(), myMockFn(), myMockFn(), myMockFn());
+  ```
+
+### mockRejectedValue
+
+- **Type:** `(value: any) => MockInstance`
+
+  Accepts an error that will be rejected, when async function will be called.
+
+  ```ts
+  test('async test', async () => {
+    const asyncMock = vi.fn().mockRejectedValue(new Error('Async error'));
+
+    await asyncMock(); // throws "Async error"
+  });
+  ```
+
+### mockRejectedValueOnce
+
+- **Type:** `(value: any) => MockInstance`
+
+  Accepts a value that will be rejected for one call to the mock function. If chained, every consecutive call will reject passed value.
+
+  ```ts
+  test('async test', async () => {
+    const asyncMock = vi
+      .fn()
+      .mockResolvedValueOnce('first call')
+      .mockRejectedValueOnce(new Error('Async error'));
+
+    await asyncMock(); // first call
+    await asyncMock(); // throws "Async error"
+  });
+  ```
+
+### mockReset
+
+- **Type:** `() => MockInstance`
+
+  Does what `mockClear` does and makes inner implementation as an empty function (returning `undefined`, when invoked). This is useful when you want to completely reset a mock back to its initial state.
+
+  If you want this method to be called before each test automatically, you can enable [`mockReset`](/config/#mockReset) setting in config.
+
+### mockRestore
+
+- **Type:** `() => MockInstance`
+
+  Does what `mockRestore` does and restores inner implementation to the original function.
+
+  Note that restoring mock from `vi.fn()` will set implementation to an empty function that returns `undefined`. Restoring a `vi.fn(impl)` will restore implementation to `impl`.
+
+  If you want this method to be called before each test automatically, you can enable [`restoreMocks`](/config/#restoreMocks) setting in config.
+
+### mockResolvedValue
+
+- **Type:** `(value: any) => MockInstance`
+
+  Accepts a value that will be resolved, when async function will be called.
+
+  ```ts
+  test('async test', async () => {
+    const asyncMock = vi.fn().mockResolvedValue(43);
+
+    await asyncMock(); // 43
+  });
+  ```
+
+### mockResolvedValueOnce
+
+- **Type:** `(value: any) => MockInstance`
+
+  Accepts a value that will be resolved for one call to the mock function. If chained, every consecutive call will resolve passed value.
+
+  ```ts
+  test('async test', async () => {
+    const asyncMock = vi
+      .fn()
+      .mockResolvedValue('default')
+      .mockResolvedValueOnce('first call')
+      .mockResolvedValueOnce('second call');
+
+    await asyncMock(); // first call
+    await asyncMock(); // second call
+    await asyncMock(); // default
+    await asyncMock(); // default
+  });
+  ```
+
+### mockReturnThis
+
+- **Type:** `() => MockInstance`
+
+  Sets inner implementation to return `this` context.
+
+### mockReturnValue
+
+- **Type:** `(value: any) => MockInstance`
+
+  Accepts a value that will be returned whenever the mock function is called.
+
+  ```ts
+  const mock = vi.fn();
+  mock.mockReturnValue(42);
+  mock(); // 42
+  mock.mockReturnValue(43);
+  mock(); // 43
+  ```
+
+### mockReturnValueOnce
+
+- **Type:** `(value: any) => MockInstance`
+
+  Accepts a value that will be returned whenever mock function is invoked. If chained, every consecutive call will return passed value. When there are no more `mockReturnValueOnce` values to use, calls a function specified by `mockImplementation` or other `mockReturn*` methods.
+
+  ```ts
+  const myMockFn = vi
+    .fn()
+    .mockReturnValue('default')
+    .mockReturnValueOnce('first call')
+    .mockReturnValueOnce('second call');
+
+  // 'first call', 'second call', 'default', 'default'
+  console.log(myMockFn(), myMockFn(), myMockFn(), myMockFn());
+  ```
+
+## MockInstance Properties
+
+### mock.calls
+
+This is an array containing all arguments for each call. One item of the array is arguments of that call.
+
+If a function was invoked twice with the following arguments `fn(arg1, arg2)`, `fn(arg3, arg4)` in that order, then `mock.calls` will be:
+
+```js
+[
+  ['arg1', 'arg2'],
+  ['arg3', 'arg4'],
+];
+```
+
+### mock.results
+
+This is an array containing all values, that were `returned` from function. One item of the array is an object with properties `type` and `value`. Available types are:
+
+- `'return'` - function returned without throwing.
+- `'throw'` - function threw a value.
+
+The `value` property contains returned value or thrown error.
+
+If function returned `'result1`, then threw and error, then `mock.results` will be:
+
+```js
+[
+  {
+    type: 'return',
+    value: 'result',
+  },
+  {
+    type: 'throw',
+    value: Error,
+  },
+];
+```
+
+### mock.instances
+
+Currently, this property is not implemented.
